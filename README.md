@@ -1,2 +1,2 @@
 # alarm-clock
-Just a basic alarm clock for early mornings
+Just a basic alarm clock for late people
