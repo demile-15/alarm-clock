@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
 # import ttkbootstrap
+import threading
 from playsound import playsound
+import pygame
 from datetime import datetime
 import time as tm
 import os
@@ -23,41 +25,13 @@ def alarm_clock(for_time):
     print("Time to wake up!")
     playsound(SOUND_PATH)
 
-# TODO: how to stop the sound when clicking Stop button?
-# Countdown timer
-def timer(for_time: str) -> None:
-    """
-    Function that takes in a time as a string HH:MM:SS, sets a countdown timer, 
-    and plays sound when time is up
-    """
-    total_seconds = string_to_sec(for_time)
-    tm.sleep(total_seconds)
-    print("Timer's up!")
-    playsound(SOUND_PATH)
 
-
-# Helper to calculate seconds
-def string_to_sec(time: str) -> int:
-    """
-    Helper to calculate the number of seconds in a period of time, 
-    represented  as a string
-    
-    Param: 
-    time -- a string to represent the input time, written in the form HH:MM:SS
-
-    Return: 
-    an integer that is the number of seconds in the given time
-    """
-    hr, mn, sec = map(int, time.split(":"))
-    return hr*3600 + mn*60 + sec
-
-
-# Helper to create a window in the middle of the screen
-def create_center_window() -> None:
+def create_center_window() -> tk.Tk:
     """
     Function to create a tkinter window in the center of the screen
+
+    Returns a Tk window
     """
-    global window
     window = tk.Tk() # create the root window
 
     w: int = 500 # width for the Tk window
@@ -78,104 +52,243 @@ def create_center_window() -> None:
     # set window title
     window.title("Clock") 
 
-
-# Display the timer
-def main() -> None:
-    # window
-    create_center_window()
-
-    # create 2 tabs for alarm clock and timer
-    notebook = ttk.Notebook(window)
-    alarm_tab = ttk.Frame(notebook, width=175)
-    timer_tab = ttk.Frame(notebook, width=175) 
-    notebook.add(alarm_tab, text="Alarms", underline=0)
-    notebook.add(timer_tab, text="Timer", underline=0)
-    notebook.pack(side='top', expand=True, fill='both')
-    # notebook.grid(sticky='nsew')
-
-    ## ALARM CLOCK TAB
-    # title
-    alarm_title_label = ttk.Label(
-        master=alarm_tab, 
-        text="Alarms", 
-        font="Calibri 20 bold")
-    alarm_title_label.pack(pady= 10)
+    return window
 
 
-    ## TIMER TAB
-    # grid configure
-    # timer_tab.columnconfigure(0, weight=1)
-    # timer_tab.columnconfigure(1, weight=1)
-    # timer_tab.rowconfigure(0, weight=1)
-    # timer_tab.rowconfigure(1, weight=1)
-
-    ### Function frame
-    function_frame = ttk.Frame(master=timer_tab)
-    function_frame.pack(expand=True, fill='both')
-
-    ## Left frame
-    # TODO: entry field that auto registers every 2 digits as part of hr, min
-    #       and sec, gradually fills out the 00:00:00
-    left_frame = ttk.Frame(master=function_frame)
-    left_frame.pack(side='left', expand=True, fill='both')
-        # grid configure
-    # left_frame.columnconfigure((0, 2, 5), weight=1)
-    # left_frame.columnconfigure((1, 3), weight=2)
-    # left_frame.columnconfigure(2, weight=1)
-    left_frame.columnconfigure((0, 1, 2, 3, 4, 5), weight=1)
-    left_frame.rowconfigure((0, 2, 4), weight=1)
-    left_frame.rowconfigure(1, weight=4)
-    left_frame.rowconfigure(3, weight=2)
+def validate_digit(new_value):
+    """
+    Function to check if the new value is a digit or empty (to allow deletion).
+    Used as a helper to validate time entries
+    """
+    return new_value.isdigit() or new_value == ""
 
 
-    # Entry frame
-    # entry_frame = ttk.Frame(master=left_frame)
-    # entry_frame.pack(side='top', expand=True, fill='both'
-    entry_time = tk.StringVar(value="")
-    entry_time_wg = ttk.Entry(
-        left_frame, 
-        textvariable=entry_time,
-        width=15)
-    #entry_time_wg.pack(side='top', pady=10)
-    entry_time_wg.grid(row=1, column=1, columnspan=3, sticky='nsew')
-        # keyboard Enter event
-    entry_time_wg.bind(
+def shift_to_next_entry(event):
+    """
+    Helper to shift focus to the next entry field after the user has entered
+    values for hour/minute/second
+    """
+    # Get the widget that triggered the event
+    widget = event.widget
+
+    # Check if the content of the widget has 2 digits
+    if len(widget.get()) == 2:
+        # Move focus to the next widget
+        widget.tk_focusNext().focus_set()
+
+
+def create_entry(frame, textvariable, validate_cmd, width=2, font=("default bold", 25)) -> ttk.Entry:
+    """
+    Helper to create an entry widget with specified parameters.
+    """
+    entry = ttk.Entry(
+        frame,
+        textvariable=textvariable,
+        width=width,
+        font=font,
+        justify="center",
+        validate="key",
+        validatecommand=(validate_cmd, "%P")
+    )
+
+    # OnFocus, delete text in the entry for user to type in new values
+    entry.bind("<FocusIn>", func=lambda event: entry.delete(0, 'end'))
+
+    # Bind the KeyRelease event to the shift_to_next_entry function
+    entry.bind("<KeyRelease>", shift_to_next_entry)
+
+    return entry
+
+
+def create_entry_frame(parent):
+    """
+    Create and return a frame for the timer entries
+
+    Param: 
+    parent - the frame's master widget
+    """
+    frame = ttk.Frame(parent)
+    frame.pack(pady=10)
+
+    # Register the validation function
+    validate_cmd = frame.register(validate_digit)
+
+    entry_hr = tk.StringVar(value="00")
+    entry_min = tk.StringVar(value="00")
+    entry_sec = tk.StringVar(value="00")
+
+    # Create entries using helper function
+    entry_hr_wg = create_entry(frame, entry_hr, validate_cmd)
+    entry_min_wg = create_entry(frame, entry_min, validate_cmd)
+    entry_sec_wg = create_entry(frame, entry_sec, validate_cmd)
+    
+    # Pack entries
+    entry_hr_wg.pack(side="left")
+    ttk.Label(frame, text=":", font=("default bold", 25)).pack(side="left")
+    entry_min_wg.pack(side="left")
+    ttk.Label(frame, text=":", font=("default bold", 25)).pack(side="left")
+    entry_sec_wg.pack(side="left")
+
+    return entry_hr, entry_min, entry_sec, frame
+
+
+def become_stop(original_button: ttk.Button):
+    original_button["text"] = "Stop"
+    original_button["command"] = stop_sound
+
+
+def create_timer_control_frame(parent, entry_frame, timer_callback):
+    """
+    Create and return the frame for the timer's control buttons.
+    
+    Params
+    - parent: the frame's master widget
+    - for_enter_keypress: a widget to bind the KeyPress-Return event to calling the timer_callback
+    - timer_callback: the function to be called when user 
+    clicks the "Start" button
+    """
+    frame = ttk.Frame(parent)
+    frame.pack(pady=10)
+    frame.columnconfigure(0, weight=1)
+    frame.columnconfigure(1, weight=1)
+
+    # 1st way to start timer: Keyboard-Enter event
+    entry_frame.bind(
         '<KeyPress-Return>', 
-        lambda event: timer(entry_time.get()))
-
+        lambda event: timer_callback())
     
-    # Start/reset frame
-    # start_reset_frame = ttk.Frame(master=left_frame)
-    # start_reset_frame.pack(side='top', expand=True, fill='both')
-        # TODO: start-stop button: start button says 'Stop' once it's selected
+    # 2nd way to start timer: Start button
     start_button = ttk.Button(
-        left_frame, 
+        frame, 
         text="Start",
-        command=lambda: timer(entry_time.get()))
-    # start_button.pack(side='left', padx=20)
-    start_button.grid(row=3, column=1, sticky='nsew')
+        command=lambda: [timer_callback(), become_stop(start_button)]) 
+        # TODO: Change "start" button to "pause" after it's clicked
+        # TODO: after alarm goes off, "pause" changes to "stop" to stop sound
+    start_button.grid(column=0, row=0, sticky='e', padx=5)
+
+
+    # TODO: reset button: reset timer to "00:00:00"; 
+            # only available after "pause" or "stop"
+    reset_button = ttk.Button(frame, text="Reset")
+    reset_button.grid(column=1, row=0, sticky='w', padx=5)
+
+    return frame
+
+
+def play_sound():
+    """Function to play the sound in a separate thread."""
+    global playing
+    pygame.mixer.music.load(SOUND_PATH)
+    pygame.mixer.music.play(loops=0)  # Play once, no looping
+
+    while pygame.mixer.music.get_busy() and playing:
+        tm.sleep(0.1)  
+        # Keep the thread alive while music plays to wait for stop signal
+        # Else, the thread terminates right after music.play() and cannot call
+        # music.stop() when user clicks the stop button
+
+
+def start_sound():
+    """ Starts the alarm sound in a new thread."""
+    global playing
+    playing = True  # Set the playing tag to True
+    threading.Thread(target=play_sound, daemon=True).start() # Play sound in a Daemon thread that doesn't prevent the main program from exiting
+
+
+def stop_sound():
+    """Stops the alarm sound"""
+    global playing
+    playing = False
+    pygame.mixer.music.stop()
+
+
+def start_timer():
+    hour, min, sec = map(
+        int, [entry_hr.get(), entry_min.get(), entry_sec.get()])
+    timer(hour, min, sec)
+
+
+def timer(hour: int, min: int, sec: int) -> None:
+    """
+    Sets a countdown timer and plays sound when time is up
+
+    Params - hour, min, sec (as integers)
+    """
+    total_seconds = hour*3600 + min*60 + sec
+
+    def update_timer():
+        nonlocal total_seconds
+        if total_seconds > 0:
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            entry_hr.set(f"{hours:02d}")
+            entry_min.set(f"{minutes:02d}")
+            entry_sec.set(f"{seconds:02d}")
+
+            total_seconds -= 1
+            window.after(1000, update_timer)  # Call this function again after 1 second
+        else:
+            entry_hr.set("00")
+            entry_min.set("00")
+            entry_sec.set("00")
+
+            print("Timer's up!")
+            window.after(100, start_sound) # Play sound when time is up (after the UI update)
+            
+    update_timer()
+
+
+# window
+window = create_center_window()
+
+# create 2 tabs for alarm clock and timer
+notebook = ttk.Notebook(window)
+alarm_tab = ttk.Frame(notebook, width=175)
+timer_tab = ttk.Frame(notebook, width=175) 
+notebook.add(alarm_tab, text="Alarms", underline=0)
+notebook.add(timer_tab, text="Timer", underline=0)
+notebook.pack(side='top', expand=True, fill='both')
+
+## ALARM CLOCK TAB
+# title
+alarm_title_label = ttk.Label(
+    master=alarm_tab, 
+    text="Alarms", 
+    font="Calibri 20 bold")
+alarm_title_label.pack(pady= 10)
+
+
+## TIMER TAB
+### Function frame
+# TODO: Use function frame as parent!!!!
+function_frame = ttk.Frame(master=timer_tab)
+function_frame.pack(expand=True, fill='both')
+
+# menu button for choosing which sound to be used
+sound_menu = tk.Menubutton(function_frame, text='Sound')
+sound_menu.pack(pady=10)
+
+# TODO: move all the code for Timer to a separate class; refactoring please
+# Create the entry frame and store entries in StringVars
+entry_hr, entry_min, entry_sec, entry_frame = create_entry_frame(function_frame)
+
+
+# Initialize pygame mixer
+pygame.mixer.init()
+
+# Global flag for stopping the sound
+playing = False
+
+# Create the control frame
+control_frame = create_timer_control_frame(function_frame, entry_frame, start_timer)
+
     
-    
-    # TODO: reset button: re-enter the input value, awaiting user to start timer
-    reset_button = ttk.Button(left_frame, text="Reset")
-    # reset_button.pack(side='left', padx=10)
-    reset_button.grid(row=3, column=3, sticky='nsew')
+### Progress bar
+# TODO: User progress frame as parent!!
 
 
-    # menu button for choosing which sound to be used
-    right_frame = ttk.Frame(master=function_frame)
-    right_frame.pack(side='right', expand=True, fill='both')
-    sound_menu = tk.Menubutton(right_frame, text='Sound')
-    sound_menu.pack(side='top', expand=True, fill='x')
+# Run
+window.mainloop()
 
-
-    ### Progress bar
-
-
-    # Run
-    window.mainloop()
-
-
-if __name__ == "__main__":
-    main()
 
