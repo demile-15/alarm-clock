@@ -7,7 +7,7 @@ This part handles all the UI elements using Tkinter.
 
 
 def create_center_window(title: str, w: int, h: int) -> tk.Tk:
-    """TODO: allow resizing
+    """TODO: consider allow resizing
     Create a tkinter window in the center of the screen"""
     window = tk.Tk()
     window.title(title)
@@ -56,9 +56,7 @@ def create_entry_frame(parent, validate_func):
 
     validate_cmd = frame.register(validate_func)
     entry_hr_wg = create_entry(frame, entry_hr, validate_cmd)
-    entry_hr_wg.bind("<KeyRelease>", shift_to_next_entry)
     entry_min_wg = create_entry(frame, entry_min, validate_cmd)
-    entry_min_wg.bind("<KeyRelease>", shift_to_next_entry)
     entry_sec_wg = create_entry(frame, entry_sec, validate_cmd)
 
     entry_hr_wg.pack(side="left")
@@ -91,33 +89,31 @@ def create_entry(
         justify="center",
         validate="key",
         validatecommand=(validate_cmd, "%P"),
-    )
-    # OnFocus, delete text in the entry for user to type in new values
-    entry.bind("<FocusIn>", lambda event: entry.delete(0, "end"))
+    ) # %P - the value of the entry if the edit is allowed
 
     return entry
 
 
-def shift_to_next_entry(event):
-    """
-    TODO: Consider if should keep this, or remove the shifting and deleting on
-    focus feature (because it seems quite stupid to keep deleting entries when
-    user wants to go back and fix the entered time). 
+# def shift_to_next_entry(event):
+#     """
+#     TODO: Consider if should keep this, or remove the shifting and deleting on
+#     focus feature (because it seems quite stupid to keep deleting entries when
+#     user wants to go back and fix the entered time). 
 
-    How about use the same
-    approach as Google, where theres only one entry field as the ":"'s are
-    entered automatically
+#     How about use the same
+#     approach as Google, where theres only one entry field as the ":"'s are
+#     entered automatically
 
-    Shift focus to the next entry field after the user has entered
-    values for hour/minute/second
-    Helper for creating entry fields
-    """
-    # Get the widget that triggered the event
-    widget = event.widget
-    # Check if the content of the widget has 2 digits
-    if len(widget.get()) == 2:
-        # Move focus to the next widget
-        widget.tk_focusNext().focus_set()
+#     Shift focus to the next entry field after the user has entered
+#     values for hour/minute/second
+#     Helper for creating entry fields
+#     """
+#     # Get the widget that triggered the event
+#     widget = event.widget
+#     # Check if the content of the widget has 2 digits
+#     if len(widget.get()) == 2:
+#         # Move focus to the next widget
+#         widget.tk_focusNext().focus_set()
 
 
 def create_timer_control_frame(
@@ -148,37 +144,29 @@ def create_timer_control_frame(
     # Start button
     start_button = ttk.Button(frame, text="Start", command=start_logic_callback)
     start_button.grid(column=0, row=0, sticky="e", padx=5)
-    set_focus_color(start_button)
 
     # Reset button to reset timer to "00:00:00"
     reset_button = ttk.Button(frame, text="Reset", command=reset_logic_callback)
     reset_button.grid(column=1, row=0, sticky="w", padx=5)
-    set_focus_color(reset_button)
 
     return start_button, reset_button
 
 
-def set_focus_color(for_button: ttk.Button):
-    def on_focus(event):
-        style = ttk.Style()
-        style.configure("TButton", background="lightblue")
-        event.widget["style"] = "TButton"
+# def set_focus_color(for_button: ttk.Button):
+#     def on_focus(event):
+#         style = ttk.Style()
+#         style.configure("TButton", background="lightblue")
+#         event.widget["style"] = "TButton"
 
-    def out_focus(event):
-        style = ttk.Style()
-        style.configure("TButton", background="SystemButtonFace")
-        event.widget["style"] = "TButton" # default button color
+#     def out_focus(event):
+#         style = ttk.Style()
+#         style.configure("TButton", background="SystemButtonFace")
+#         event.widget["style"] = "TButton" # default button color
 
-    for_button.bind("<FocusIn>", on_focus)
-    for_button.bind("<FocusOut>", out_focus)
-    
+#     for_button.bind("<FocusIn>", on_focus)
+#     for_button.bind("<FocusOut>", out_focus)
 
-# def update_button(for_button: ttk.Button, text, updated_command):
-#     for_button["text"] = "Stop"
-#     for_button["command"] = stop_sound
-
-
-def open_popup(reset_callback):
+def open_popup(stop_callback):
     """
     Create a popup window notifying user when timer goes off
     """
@@ -204,8 +192,8 @@ def open_popup(reset_callback):
         return ok_button
 
     def on_button_click():
-        nonlocal reset_callback, popup
-        reset_callback()
+        nonlocal stop_callback, popup
+        stop_callback()
         popup.destroy()
 
 

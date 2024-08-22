@@ -18,15 +18,26 @@ class TimerController:
             self.timer_tab, self.validate_digit
         )
         self.start_button, self.reset_button = create_timer_control_frame(
-            self.timer_tab, entry_frame, self.start_timer_logic, self.model.stop_sound
+            self.timer_tab, 
+            entry_frame, 
+            self.start_timer_logic, 
+            self.reset_timer
         )
 
     def validate_digit(self, new_value):
         """
-        Check if the new value is a digit or empty (to allow deletion).
-        Helper to validate time entries
+        Validates the entry:
+        - Allows only digits or empty values (for deletion)
+        - Limits the entry to two digits
+
+        Param:
+        new_value       - the value of the entry if the edit is allowed
         """
-        return new_value.isdigit() or new_value == ""
+        return (new_value.isdigit() and len(new_value) <= 2) or new_value == ""
+
+    def update_button(self, for_button: ttk.Button, text, updated_command):
+        for_button["text"] = text
+        for_button["command"] = updated_command
 
     def start_timer_logic(self):
         hour, min, sec = map(
@@ -35,6 +46,7 @@ class TimerController:
         self.model.start_timer(
             hour, min, sec, self.update_time, self.time_up
         )
+        self.update_button(self.start_button, "Pause", self.model.pause_timer)
 
     def update_time(self, hours: int, minutes: int, seconds: int):
         """
@@ -57,7 +69,7 @@ class TimerController:
         self.model.play_sound(SOUND_PATH)
 
         # Make a popup menu
-        open_popup(reset_callback=self.model.stop_sound)
+        open_popup(stop_callback=self.model.stop_sound)
 
     def run(self):
         self.window.mainloop()

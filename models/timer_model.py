@@ -15,32 +15,39 @@ class TimerModel:
         # Initialize pygame mixer
         pygame.mixer.init()
 
-        # Global flag for starting the countdown
-        self.countdown = False
+        # Global flag for running the countdown
+        self.counting = False
 
         # Global flag for playing the sound
         self.playing = False
 
     def start_timer(self, hour, min, sec, update_callback, finish_callback):
-        self.countdown = True
-        total_seconds = hour * 3600 + min * 60 + sec
-        self._countdown(total_seconds, update_callback, finish_callback)
+        self.counting = True
+        self.total_seconds = hour * 3600 + min * 60 + sec
+        self.update_callback = update_callback
+        self.finish_callback = finish_callback
+        self._countdown()
 
-    def _countdown(self, total_seconds, update_callback, finish_callback):
-        def update_timer():
-            nonlocal total_seconds
-            if total_seconds > 0:
-                hours, remainder = divmod(total_seconds, 3600)
+    def _countdown(self):
+        if self.total_seconds > 0:
+            if self.counting:
+                hours, remainder = divmod(self.total_seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
+                self.update_callback(hours, minutes, seconds)
 
-                update_callback(hours, minutes, seconds)
-                
-                total_seconds -= 1
-                self.root.after(1000, update_timer)
-            else:
-                finish_callback()
+                self.total_seconds -= 1
+                self.root.after(1000, self._countdown)
+            return
+        else:
+            self.counting = False
+            self.finish_callback()
 
-        update_timer()
+    def pause_timer(self):
+        self.counting = False
+
+    def resume_timer(self):
+        self.counting = True
+        self._countdown()
 
     def play_sound(self, sound_path):
         """
