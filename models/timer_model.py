@@ -37,12 +37,15 @@ class TimerModel:
 
                 self.total_seconds -= 1
                 self.root.after(1000, self._countdown)
-            return
         else:
-            self.counting = False
-            self.finish_callback()
+            if self.counting:
+                self.counting = False
+                self.finish_callback()
 
     def pause_timer(self):
+        """
+        TODO: edge case: hit pause when alarm reaches 0?
+        """
         self.counting = False
 
     def resume_timer(self):

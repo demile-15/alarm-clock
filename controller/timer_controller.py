@@ -1,4 +1,5 @@
 from models.timer_model import TimerModel
+from view.timer_view import TimerView
 from view.timer_view import *
 import os
 
@@ -10,18 +11,18 @@ SOUND_PATH = os.path.join("sound", "uplifting_sound.mp3")
 
 class TimerController:
     def __init__(self):
-        self.window = create_center_window("Clock and Timer", 500, 250)
-        self.model = TimerModel(self.window)
+        self.view = TimerView(500, 250)
+        self.model = TimerModel(self.view.window)
 
-        self.alarm_tab, self.timer_tab = create_notebook_with_tabs(self.window)
-        self.entry_hr, self.entry_min, self.entry_sec, entry_frame = create_entry_frame(
-            self.timer_tab, self.validate_digit
+        self.entry_hr, self.entry_min, self.entry_sec, entry_frame = (
+            self.view.create_entry_frame(self.view.timer_tab, self.validate_digit)
         )
-        self.start_button, self.reset_button = create_timer_control_frame(
-            self.timer_tab, 
-            entry_frame, 
-            self.start_timer_logic, 
-            self.reset_timer
+
+        self.view.create_timer_control_frame(
+            self.view.timer_tab,
+            entry_frame,
+            self.start_timer_logic,
+            self.reset_timer_logic,
         )
 
     def validate_digit(self, new_value):
@@ -40,13 +41,12 @@ class TimerController:
         for_button["command"] = updated_command
 
     def start_timer_logic(self):
+
         hour, min, sec = map(
             int, [self.entry_hr.get(), self.entry_min.get(), self.entry_sec.get()]
         )
-        self.model.start_timer(
-            hour, min, sec, self.update_time, self.time_up
-        )
-        self.update_button(self.start_button, "Pause", self.model.pause_timer)
+        self.model.start_timer(hour, min, sec, self.update_time, self.time_up)
+        self.update_button(self.view.start_button, "Pause", self.pause_timer_logic)
 
     def update_time(self, hours: int, minutes: int, seconds: int):
         """
@@ -56,23 +56,33 @@ class TimerController:
         self.entry_min.set(f"{minutes:02d}")
         self.entry_sec.set(f"{seconds:02d}")
 
-    def reset_timer(self):
-        self.entry_hr.set("00")
-        self.entry_min.set("00")
-        self.entry_sec.set("00")
+    def reset_timer_logic(self):
+        self.model.pause_timer()
+        self.update_time(0, 0, 0)
+
+    def pause_timer_logic(self):
+        self.model.pause_timer()
+        self.update_button(self.view.start_button, "Resume", self.resume_timer_logic)
+
+    def resume_timer_logic(self):
+        self.model.resume_timer()
+        self.update_button(self.view.start_button, "Pause", self.pause_timer_logic)
 
     def time_up(self):
         # Update display time
-        self.reset_timer()
+        self.update_time(0, 0, 0)
 
         # Play sound
         self.model.play_sound(SOUND_PATH)
 
         # Make a popup menu
-        open_popup(stop_callback=self.model.stop_sound)
+        self.view.create_popup(stop_callback=self.model.stop_sound)
+
+        # Reset the start button
+        self.update_button(self.view.start_button, "Start", self.start_timer_logic)
 
     def run(self):
-        self.window.mainloop()
+        self.view.window.mainloop()
 
 
 if __name__ == "__main__":
