@@ -4,8 +4,6 @@ from tkinter import ttk
 """
 This part handles all the UI elements using Tkinter.
 """
-
-
 class TimerView:
     def __init__(self, app_width, app_height, title="Clock and Timer"):
         self.window = tk.Tk()
@@ -59,15 +57,15 @@ class TimerView:
         entry_sec = tk.StringVar(value="00")
 
         validate_cmd = frame.register(validate_func)
-        self.entry_hr_wg = self.create_entry(frame, entry_hr, validate_cmd)
-        self.entry_min_wg = self.create_entry(frame, entry_min, validate_cmd)
-        self.entry_sec_wg = self.create_entry(frame, entry_sec, validate_cmd)
+        entry_hr_wg = self.create_entry(frame, entry_hr, validate_cmd)
+        entry_min_wg = self.create_entry(frame, entry_min, validate_cmd)
+        entry_sec_wg = self.create_entry(frame, entry_sec, validate_cmd)
 
-        self.entry_hr_wg.pack(side="left")
+        entry_hr_wg.pack(side="left")
         ttk.Label(frame, text=":", font=("default bold", 25)).pack(side="left")
-        self.entry_min_wg.pack(side="left")
+        entry_min_wg.pack(side="left")
         ttk.Label(frame, text=":", font=("default bold", 25)).pack(side="left")
-        self.entry_sec_wg.pack(side="left")
+        entry_sec_wg.pack(side="left")
 
         return entry_hr, entry_min, entry_sec, frame
 

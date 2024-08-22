@@ -11,21 +11,22 @@ SOUND_PATH = os.path.join("sound", "uplifting_sound.mp3")
 
 class TimerController:
     def __init__(self):
+        # TODO: reconsider the logic for TimerView class here
         self.view = TimerView(500, 250)
         self.model = TimerModel(self.view.window)
 
-        self.entry_hr, self.entry_min, self.entry_sec, entry_frame = (
-            self.view.create_entry_frame(self.view.timer_tab, self.validate_digit)
+        self.entry_hr, self.entry_min, self.entry_sec, self.entry_frame = (
+            self.view.create_entry_frame(self.view.timer_tab, self._validate_digit)
         )
 
         self.view.create_timer_control_frame(
             self.view.timer_tab,
-            entry_frame,
+            self.entry_frame,
             self.start_timer_logic,
             self.reset_timer_logic,
         )
 
-    def validate_digit(self, new_value):
+    def _validate_digit(self, new_value):
         """
         Validates the entry:
         - Allows only digits or empty values (for deletion)
@@ -40,8 +41,18 @@ class TimerController:
         for_button["text"] = text
         for_button["command"] = updated_command
 
-    def start_timer_logic(self):
+    def _set_entry_editable(self, editable=True):
+        """
+        Disable/enable entry fields
 
+        Param: disabled - a boolean that disable the entry fields if is True
+        """
+        state = "disabled" if not editable else "normal"
+        for entry in self.entry_frame.winfo_children():
+            entry["state"] = state
+
+    def start_timer_logic(self):
+        self._set_entry_editable(False)
         hour, min, sec = map(
             int, [self.entry_hr.get(), self.entry_min.get(), self.entry_sec.get()]
         )
@@ -59,6 +70,8 @@ class TimerController:
     def reset_timer_logic(self):
         self.model.pause_timer()
         self.update_time(0, 0, 0)
+        self._set_entry_editable(True)
+        self.update_button(self.view.start_button, "Start", self.start_timer_logic)
 
     def pause_timer_logic(self):
         self.model.pause_timer()
@@ -69,17 +82,14 @@ class TimerController:
         self.update_button(self.view.start_button, "Pause", self.pause_timer_logic)
 
     def time_up(self):
-        # Update display time
-        self.update_time(0, 0, 0)
-
         # Play sound
         self.model.play_sound(SOUND_PATH)
 
         # Make a popup menu
         self.view.create_popup(stop_callback=self.model.stop_sound)
 
-        # Reset the start button
-        self.update_button(self.view.start_button, "Start", self.start_timer_logic)
+        # Reset the timer
+        self.reset_timer_logic()
 
     def run(self):
         self.view.window.mainloop()

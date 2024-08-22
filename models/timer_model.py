@@ -40,6 +40,7 @@ class TimerModel:
         else:
             if self.counting:
                 self.counting = False
+                self.update_callback(0, 0, 0)
                 self.finish_callback()
 
     def pause_timer(self):
